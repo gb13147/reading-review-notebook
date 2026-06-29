@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>个人读书评价摘抄系统</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">书</div>
+          <div>
+            <h1>读书评价摘抄</h1>
+            <p>私人书架</p>
+          </div>
+        </div>
+
+        <button class="primary-action" id="newBookButton" type="button">添加书籍</button>
+
+        <label class="field compact">
+          <span>搜索书架</span>
+          <input id="librarySearch" type="search" placeholder="书名、作者、标签" />
+        </label>
+
+        <div class="status-tabs" role="tablist" aria-label="阅读状态筛选">
+          <button class="tab active" type="button" data-status="all">全部</button>
+          <button class="tab" type="button" data-status="想读">想读</button>
+          <button class="tab" type="button" data-status="在读">在读</button>
+          <button class="tab" type="button" data-status="已读">已读</button>
+        </div>
+
+        <div class="library-list" id="libraryList" aria-label="我的书架"></div>
+      </aside>
+
+      <main class="workspace">
+        <section class="book-toolbar">
+          <div>
+            <p class="eyebrow">当前书籍</p>
+            <h2 id="currentTitle">还没有选择书籍</h2>
+          </div>
+          <div class="toolbar-actions">
+            <button id="exportMarkdownButton" class="ghost" type="button">导出 Markdown</button>
+            <button id="exportJsonButton" class="ghost" type="button">备份数据</button>
+          </div>
+        </section>
+
+        <section id="emptyState" class="empty-state">
+          <h2>从一本书开始</h2>
+          <p>添加书籍后，可以评分、写评价、记录摘抄和关键词。</p>
+          <button class="primary-action" id="emptyAddButton" type="button">添加第一本书</button>
+        </section>
+
+        <section id="bookDetail" class="detail-layout hidden">
+          <article class="book-panel">
+            <div class="book-header">
+              <div class="cover-frame">
+                <img id="coverImage" alt="" />
+                <div id="coverFallback" class="cover-fallback">无封面</div>
+              </div>
+              <div class="book-meta">
+                <input id="titleInput" class="title-input" aria-label="书名" />
+                <div class="meta-line" id="metaLine"></div>
+                <label class="field">
+                  <span>阅读状态</span>
+                  <select id="statusInput">
+                    <option>想读</option>
+                    <option>在读</option>
+                    <option>已读</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="review-grid">
+              <label class="field">
+                <span>评分</span>
+                <input id="ratingInput" type="range" min="0" max="10" step="0.5" />
+                <strong id="ratingValue">0</strong>
+              </label>
+              <label class="field">
+                <span>推荐指数</span>
+                <select id="recommendInput">
+                  <option>一般</option>
+                  <option>值得一读</option>
+                  <option>强烈推荐</option>
+                  <option>私人珍藏</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field">
+              <span>我的评价</span>
+              <textarea id="longReviewInput" rows="7" placeholder="写下你对这本书的评价"></textarea>
+            </label>
+
+            <label class="field">
+              <span>简介</span>
+              <textarea id="descriptionInput" rows="5" placeholder="书籍简介"></textarea>
+            </label>
+          </article>
+
+          <section class="quotes-panel">
+            <div class="panel-head">
+              <div>
+                <h3>摘抄</h3>
+                <p id="quoteCounter">0 条</p>
+              </div>
+              <button id="addQuoteButton" class="primary-action small" type="button">添加摘抄</button>
+            </div>
+
+            <div class="quote-filters">
+              <label class="field compact">
+                <span>关键词</span>
+                <input id="quoteSearch" type="search" placeholder="摘抄、想法、关键词" />
+              </label>
+            </div>
+
+            <div id="quoteList" class="quote-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="bookDialog" class="dialog">
+      <form method="dialog" class="dialog-body">
+        <div class="dialog-head">
+          <h2>添加书籍</h2>
+          <button class="icon-action" value="cancel" type="submit" title="关闭">×</button>
+        </div>
+        <div class="search-row">
+          <input id="bookSearchInput" placeholder="输入书名或作者" />
+          <button id="searchBookButton" class="primary-action" type="button">搜索</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+        <div class="manual-add">
+          <h3>手动添加</h3>
+          <div class="manual-grid">
+            <input id="manualTitle" placeholder="书名" />
+            <input id="manualAuthor" placeholder="作者" />
+            <input id="manualPublisher" placeholder="出版社" />
+          </div>
+          <button id="manualAddButton" class="ghost" type="button">保存手动书籍</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="quoteDialog" class="dialog">
+      <form method="dialog" class="dialog-body">
+        <div class="dialog-head">
+          <h2 id="quoteDialogTitle">添加摘抄</h2>
+          <button class="icon-action" value="cancel" type="submit" title="关闭">×</button>
+        </div>
+        <label class="field">
+          <span>页码</span>
+          <input id="quotePageInput" placeholder="例如 128，可不填" />
+        </label>
+        <label class="field">
+          <span>摘抄原文</span>
+          <textarea id="quoteTextInput" rows="5"></textarea>
+        </label>
+        <label class="field">
+          <span>我的想法</span>
+          <textarea id="quoteNoteInput" rows="4"></textarea>
+        </label>
+        <label class="field">
+          <span>关键词</span>
+          <input id="quoteTagsInput" placeholder="用逗号分隔，如 青春,人物,心理" />
+        </label>
+        <div class="dialog-actions">
+          <button id="deleteQuoteButton" class="danger hidden" type="button">删除</button>
+          <button id="saveQuoteButton" class="primary-action" type="button">保存摘抄</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

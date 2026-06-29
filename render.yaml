@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: reading-review-notebook
+    env: node
+    plan: starter
+    buildCommand: ""
+    startCommand: "npm start"
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: reading-data
+      mountPath: /var/data
+      sizeGB: 1
