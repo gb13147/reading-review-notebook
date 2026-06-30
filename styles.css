@@ -135,6 +135,17 @@ button {
   background: var(--warn);
 }
 
+.danger.subtle {
+  color: var(--warn);
+  border: 1px solid #e4c7c1;
+  background: #fff;
+}
+
+.danger.subtle:hover {
+  color: #fff;
+  background: var(--warn);
+}
+
 .icon-action {
   display: grid;
   place-items: center;

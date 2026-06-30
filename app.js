@@ -77,7 +77,8 @@ const el = {
   saveQuoteButton: document.querySelector("#saveQuoteButton"),
   deleteQuoteButton: document.querySelector("#deleteQuoteButton"),
   exportMarkdownButton: document.querySelector("#exportMarkdownButton"),
-  exportJsonButton: document.querySelector("#exportJsonButton")
+  exportJsonButton: document.querySelector("#exportJsonButton"),
+  deleteBookButton: document.querySelector("#deleteBookButton")
 };
 
 function loadState() {
@@ -248,6 +249,7 @@ function renderDetail() {
   el.emptyState.classList.toggle("hidden", hasBook);
   el.bookDetail.classList.toggle("hidden", !hasBook);
   el.exportMarkdownButton.disabled = !hasBook;
+  el.deleteBookButton.disabled = !hasBook;
   el.exportJsonButton.disabled = !state.books.length;
   if (!book) {
     el.currentTitle.textContent = "还没有选择书籍";
@@ -623,6 +625,20 @@ function deleteQuote() {
   render();
 }
 
+function deleteCurrentBook() {
+  const book = activeBook();
+  if (!book) return;
+  const confirmed = confirm(`确定删除《${book.title || "未命名书籍"}》吗？这本书的评价和摘抄也会一起删除。`);
+  if (!confirmed) return;
+
+  const index = state.books.findIndex((item) => item.id === book.id);
+  state.books = state.books.filter((item) => item.id !== book.id);
+  activeBookId = state.books[index]?.id || state.books[index - 1]?.id || state.books[0]?.id || null;
+  flipSpread = 0;
+  saveState();
+  render();
+}
+
 function exportMarkdown() {
   const book = activeBook();
   if (!book) return;
@@ -698,6 +714,7 @@ function bindEvents() {
   el.quoteSearch.addEventListener("input", () => renderQuotes(activeBook()));
   el.exportMarkdownButton.addEventListener("click", exportMarkdown);
   el.exportJsonButton.addEventListener("click", exportJson);
+  el.deleteBookButton.addEventListener("click", deleteCurrentBook);
 
   [
     ["input", el.titleInput, () => updateBook({ title: el.titleInput.value })],
