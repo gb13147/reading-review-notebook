@@ -1,177 +1,177 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>个人读书评价摘抄系统</title>
+    <title>拟态翻页式多媒体感想日记本</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">书</div>
+          <div class="brand-mark">记</div>
           <div>
-            <h1>读书评价摘抄</h1>
-            <p>私人书架</p>
+            <h1>拟态感想日记本</h1>
+            <p>照片、音乐和回忆的翻页本</p>
           </div>
         </div>
 
-        <button class="primary-action" id="newBookButton" type="button">添加书籍</button>
+        <button id="newEntryButton" class="primary-action" type="button">新建感想</button>
 
         <label class="field compact">
-          <span>搜索书架</span>
-          <input id="librarySearch" type="search" placeholder="书名、作者、标签" />
+          <span>搜索</span>
+          <input id="searchInput" type="search" placeholder="标题、正文、标签、日期" />
         </label>
 
-        <div class="status-tabs" role="tablist" aria-label="阅读状态筛选">
-          <button class="tab active" type="button" data-status="all">全部</button>
-          <button class="tab" type="button" data-status="想读">想读</button>
-          <button class="tab" type="button" data-status="在读">在读</button>
-          <button class="tab" type="button" data-status="已读">已读</button>
-        </div>
+        <section class="calendar-card">
+          <div class="calendar-head">
+            <button id="prevMonthButton" class="icon-button" type="button" title="上个月">‹</button>
+            <strong id="monthLabel"></strong>
+            <button id="nextMonthButton" class="icon-button" type="button" title="下个月">›</button>
+          </div>
+          <div class="weekdays">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
 
-        <div class="library-list" id="libraryList" aria-label="我的书架"></div>
+        <section class="toc-card">
+          <div class="section-title">
+            <h2>目录</h2>
+            <span id="entryCount">0 篇</span>
+          </div>
+          <div id="entryList" class="entry-list"></div>
+        </section>
       </aside>
 
       <main class="workspace">
-        <section class="book-toolbar">
+        <header class="topbar">
           <div>
-            <p class="eyebrow">当前书籍</p>
-            <h2 id="currentTitle">还没有选择书籍</h2>
+            <p class="eyebrow">当前日记</p>
+            <h2 id="currentEntryTitle">还没有记录</h2>
           </div>
-          <div class="toolbar-actions">
-            <button id="exportMarkdownButton" class="ghost" type="button">导出 Markdown</button>
-            <button id="exportJsonButton" class="ghost" type="button">备份数据</button>
-            <button id="deleteBookButton" class="danger subtle" type="button">删除书籍</button>
+          <div class="top-actions">
+            <button id="soundToggleButton" class="ghost" type="button">翻页声音：开</button>
+            <select id="soundSelect" class="compact-select" aria-label="翻页音效">
+              <option value="soft">轻纸声</option>
+              <option value="deep">厚纸声</option>
+              <option value="crisp">清脆纸声</option>
+            </select>
+            <button id="backupButton" class="ghost" type="button">备份数据</button>
+            <button id="deleteEntryButton" class="danger subtle" type="button">删除</button>
           </div>
-        </section>
+        </header>
 
         <section id="emptyState" class="empty-state">
-          <h2>从一本书开始</h2>
-          <p>添加书籍后，可以评分、写评价、记录摘抄和关键词。</p>
-          <button class="primary-action" id="emptyAddButton" type="button">添加第一本书</button>
+          <h2>翻开第一页</h2>
+          <p>新建一篇感想，选择纸张背景，在光标位置插入照片和音乐。</p>
+          <button id="emptyNewButton" class="primary-action" type="button">写一篇感想</button>
         </section>
 
-        <section id="bookDetail" class="detail-layout hidden">
-          <article class="book-panel">
-            <div class="book-header">
-              <div class="cover-frame">
-                <img id="coverImage" alt="" />
-                <div id="coverFallback" class="cover-fallback">无封面</div>
-              </div>
-              <div class="book-meta">
-                <input id="titleInput" class="title-input" aria-label="书名" />
-                <div class="meta-line" id="metaLine"></div>
-                <label class="field">
-                  <span>阅读状态</span>
-                  <select id="statusInput">
-                    <option>想读</option>
-                    <option>在读</option>
-                    <option>已读</option>
-                  </select>
-                </label>
-              </div>
-            </div>
+        <section id="journalDesk" class="journal-desk hidden">
+          <div class="book-toolbar">
+            <button id="prevPageButton" class="ghost" type="button">上一页</button>
+            <span id="pageLabel" class="page-pill">1 / 1</span>
+            <button id="nextPageButton" class="ghost" type="button">下一页</button>
+          </div>
 
-            <div class="review-grid">
-              <label class="field">
-                <span>评分</span>
-                <input id="ratingInput" type="range" min="0" max="10" step="0.5" />
-                <strong id="ratingValue">0</strong>
-              </label>
-              <label class="field">
-                <span>推荐指数</span>
-                <select id="recommendInput">
-                  <option>一般</option>
-                  <option>值得一读</option>
-                  <option>强烈推荐</option>
-                  <option>私人珍藏</option>
-                </select>
-              </label>
-            </div>
-
-            <label class="field">
-              <span>我的评价</span>
-              <textarea id="longReviewInput" rows="7" placeholder="写下你对这本书的评价"></textarea>
-            </label>
-
-            <label class="field">
-              <span>简介</span>
-              <textarea id="descriptionInput" rows="5" placeholder="书籍简介"></textarea>
-            </label>
-          </article>
-
-          <section class="quotes-panel">
-            <div class="panel-head">
-              <div>
-                <h3>摘抄</h3>
-                <p id="quoteCounter">0 条</p>
-              </div>
-              <button id="addQuoteButton" class="primary-action small" type="button">添加摘抄</button>
-            </div>
-
-            <div class="quote-filters">
-              <label class="field compact">
-                <span>关键词</span>
-                <input id="quoteSearch" type="search" placeholder="摘抄、想法、关键词" />
-              </label>
-            </div>
-
-            <div id="quoteList" class="quote-list"></div>
-          </section>
+          <div class="book-stage" id="bookStage">
+            <article id="leftPage" class="paper-page left-page"></article>
+            <article id="rightPage" class="paper-page right-page"></article>
+            <div id="turnPage" class="turn-page"></div>
+          </div>
         </section>
       </main>
+
+      <aside id="editorPanel" class="editor-panel hidden">
+        <div class="section-title">
+          <h2>编辑</h2>
+          <span id="saveHint">已自动保存</span>
+        </div>
+
+        <label class="field">
+          <span>标题</span>
+          <input id="titleInput" placeholder="这一页的名字" />
+        </label>
+
+        <div class="date-grid">
+          <label class="field">
+            <span>日期</span>
+            <input id="dateInput" type="date" />
+          </label>
+          <label class="field">
+            <span>时间</span>
+            <input id="timeInput" type="time" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>标签</span>
+          <input id="tagsInput" placeholder="雨天、电影、读后感" />
+        </label>
+
+        <label class="field">
+          <span>页面背景</span>
+          <select id="backgroundSelect">
+            <option value="paper">温柔纸张</option>
+            <option value="letter">复古信纸</option>
+            <option value="mist">雾蓝纯色</option>
+            <option value="rose">暖粉手账</option>
+            <option value="night">夜色星空</option>
+            <option value="photo">照片背景</option>
+            <option value="rain">窗外雨声</option>
+            <option value="snow">飘雪</option>
+            <option value="leaves">落叶</option>
+          </select>
+        </label>
+
+        <label id="photoBackgroundField" class="field hidden">
+          <span>照片背景</span>
+          <input id="backgroundImageInput" type="file" accept="image/*" />
+        </label>
+
+        <div class="format-bar" aria-label="文字工具">
+          <button data-command="formatBlock" data-value="h2" type="button">标题</button>
+          <button data-command="bold" type="button">B</button>
+          <button data-command="italic" type="button">I</button>
+          <button data-command="foreColor" data-value="#7a4933" type="button">色</button>
+          <button data-command="insertHorizontalRule" type="button">线</button>
+          <button data-command="formatBlock" data-value="blockquote" type="button">引</button>
+        </div>
+
+        <div class="insert-grid">
+          <label class="insert-button">
+            插入图片
+            <input id="imageInput" type="file" accept="image/*,image/gif" hidden />
+          </label>
+          <label class="insert-button">
+            插入音乐
+            <input id="audioInput" type="file" accept="audio/*" hidden />
+          </label>
+          <label class="insert-button">
+            插入视频
+            <input id="videoInput" type="file" accept="video/*" hidden />
+          </label>
+          <button id="insertSceneButton" class="insert-button" type="button">插入动态场景</button>
+        </div>
+
+        <div id="editor" class="rich-editor" contenteditable="true"></div>
+      </aside>
     </div>
 
-    <dialog id="bookDialog" class="dialog">
+    <dialog id="sceneDialog" class="dialog">
       <form method="dialog" class="dialog-body">
         <div class="dialog-head">
-          <h2>添加书籍</h2>
-          <button class="icon-action" value="cancel" type="submit" title="关闭">×</button>
+          <h2>插入动态场景</h2>
+          <button class="icon-button" value="cancel" type="submit">×</button>
         </div>
-        <div class="search-row">
-          <input id="bookSearchInput" placeholder="输入书名或作者" />
-          <button id="searchBookButton" class="primary-action" type="button">搜索</button>
-        </div>
-        <div id="searchResults" class="search-results"></div>
-        <div class="manual-add">
-          <h3>手动添加</h3>
-          <div class="manual-grid">
-            <input id="manualTitle" placeholder="书名" />
-            <input id="manualAuthor" placeholder="作者" />
-            <input id="manualPublisher" placeholder="出版社" />
-          </div>
-          <button id="manualAddButton" class="ghost" type="button">保存手动书籍</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="quoteDialog" class="dialog">
-      <form method="dialog" class="dialog-body">
-        <div class="dialog-head">
-          <h2 id="quoteDialogTitle">添加摘抄</h2>
-          <button class="icon-action" value="cancel" type="submit" title="关闭">×</button>
-        </div>
-        <label class="field">
-          <span>页码</span>
-          <input id="quotePageInput" placeholder="例如 128，可不填" />
-        </label>
-        <label class="field">
-          <span>摘抄原文</span>
-          <textarea id="quoteTextInput" rows="5"></textarea>
-        </label>
-        <label class="field">
-          <span>我的想法</span>
-          <textarea id="quoteNoteInput" rows="4"></textarea>
-        </label>
-        <label class="field">
-          <span>关键词</span>
-          <input id="quoteTagsInput" placeholder="用逗号分隔，如 青春,人物,心理" />
-        </label>
-        <div class="dialog-actions">
-          <button id="deleteQuoteButton" class="danger hidden" type="button">删除</button>
-          <button id="saveQuoteButton" class="primary-action" type="button">保存摘抄</button>
+        <div class="scene-options">
+          <button value="rain" type="button">下雨</button>
+          <button value="snow" type="button">飘雪</button>
+          <button value="leaves" type="button">落叶</button>
+          <button value="stars" type="button">星空</button>
+          <button value="candle" type="button">烛光</button>
         </div>
       </form>
     </dialog>
