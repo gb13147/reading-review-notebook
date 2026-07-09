@@ -307,3 +307,38 @@ input, select {
   .right-page { border-top: 1px solid var(--paper-edge); }
   .date-grid, .insert-grid, .scene-options { grid-template-columns: 1fr; }
 }
+
+.calendar-tip {
+  margin: 10px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.danger-lite {
+  color: var(--danger);
+  border-color: #e1bdb7;
+}
+
+.rich-editor .selected-media,
+.page-content .selected-media {
+  outline: 3px dashed var(--accent);
+  outline-offset: 4px;
+}
+
+.rich-editor figure,
+.rich-editor video,
+.rich-editor .media-card,
+.rich-editor .scene-card {
+  cursor: pointer;
+}
+
+.video-card {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.video-card video {
+  width: min(100%, 520px);
+}

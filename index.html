@@ -34,6 +34,7 @@
             <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
+          <p class="calendar-tip">点日期：切换当天记录；没有记录时会把当前日记改到这一天。</p>
         </section>
 
         <section class="toc-card">
@@ -154,6 +155,7 @@
             <input id="videoInput" type="file" accept="video/*" hidden />
           </label>
           <button id="insertSceneButton" class="insert-button" type="button">插入动态场景</button>
+          <button id="deleteSelectedButton" class="insert-button danger-lite" type="button">删除选中内容</button>
         </div>
 
         <div id="editor" class="rich-editor" contenteditable="true"></div>
@@ -179,3 +181,5 @@
     <script src="app.js"></script>
   </body>
 </html>
+
+

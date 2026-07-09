@@ -1,4 +1,5 @@
 ﻿const STORAGE_KEY = "morphic-media-diary-v1";
+const ASSET_DB = "morphic-media-assets-v1";
 
 const state = loadState();
 let activeId = state.activeId || state.entries[0]?.id || null;
@@ -45,6 +46,7 @@ const el = {
   audioInput: document.querySelector("#audioInput"),
   videoInput: document.querySelector("#videoInput"),
   insertSceneButton: document.querySelector("#insertSceneButton"),
+  deleteSelectedButton: document.querySelector("#deleteSelectedButton"),
   sceneDialog: document.querySelector("#sceneDialog"),
   saveHint: document.querySelector("#saveHint")
 };
@@ -81,8 +83,13 @@ function saveState() {
   state.activeId = activeId;
   state.settings.soundOn = soundOn;
   state.settings.soundKind = soundKind;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  el.saveHint.textContent = "已自动保存";
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    el.saveHint.textContent = "已自动保存";
+  } catch (error) {
+    el.saveHint.textContent = "素材太大，已显示但建议用较小文件";
+    console.warn("保存失败", error);
+  }
 }
 
 function uid() {
@@ -232,13 +239,18 @@ function renderCalendar() {
   `).join("");
   document.querySelectorAll("[data-date]").forEach((button) => {
     button.addEventListener("click", () => {
-      const entry = state.entries.find((item) => item.date === button.dataset.date);
+      const pickedDate = button.dataset.date;
+      const entry = state.entries.find((item) => item.date === pickedDate);
       if (entry) {
         activeId = entry.id;
-        spreadIndex = 0;
-      } else {
-        viewDate = new Date(`${button.dataset.date}T00:00`);
+      } else if (activeEntry()) {
+        const current = activeEntry();
+        current.date = pickedDate;
+        current.updatedAt = new Date().toISOString();
+        activeId = current.id;
       }
+      viewDate = new Date(`${pickedDate}T00:00`);
+      spreadIndex = 0;
       saveState();
       render();
     });
@@ -270,6 +282,7 @@ function renderDetail(restoreEditor) {
   }
   el.photoBackgroundField.classList.toggle("hidden", el.backgroundSelect.value !== "photo");
   renderBook(entry);
+  hydrateEntryAssets(entry);
 }
 
 function splitContentIntoPages(entry) {
@@ -405,6 +418,59 @@ function insertHtmlAtCursor(html) {
   updateActive({ content: el.editor.innerHTML });
 }
 
+
+function openAssetDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(ASSET_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("assets", { keyPath: "id" });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveAsset(file) {
+  const db = await openAssetDb();
+  const id = `asset-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("assets", "readwrite");
+    tx.objectStore("assets").put({ id, name: file.name, type: file.type, blob: file });
+    tx.oncomplete = () => resolve({ id, name: file.name, type: file.type, url: URL.createObjectURL(file) });
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getAssetUrl(id) {
+  const db = await openAssetDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("assets", "readonly");
+    const request = tx.objectStore("assets").get(id);
+    request.onsuccess = () => {
+      const asset = request.result;
+      resolve(asset?.blob ? URL.createObjectURL(asset.blob) : "");
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function hydrateEntryAssets(entry) {
+  if (!entry?.content || !entry.content.includes("data-asset-id")) return;
+  const temp = document.createElement("div");
+  temp.innerHTML = entry.content;
+  const nodes = [...temp.querySelectorAll("[data-asset-id]")];
+  let changed = false;
+  for (const node of nodes) {
+    const url = await getAssetUrl(node.dataset.assetId).catch(() => "");
+    if (url && node.getAttribute("src") !== url) {
+      node.setAttribute("src", url);
+      changed = true;
+    }
+  }
+  if (changed) {
+    entry.content = temp.innerHTML;
+    saveState();
+    render(false);
+  }
+}
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -428,8 +494,15 @@ async function insertAudio(file) {
 
 async function insertVideo(file) {
   if (!file) return;
-  const src = await fileToDataUrl(file);
-  insertHtmlAtCursor(`<video controls loop src="${src}" style="width: 80%;"></video><p><br></p>`);
+  el.saveHint.textContent = "正在插入视频...";
+  try {
+    const asset = await saveAsset(file);
+    insertHtmlAtCursor(`<div class="video-card selected-media" contenteditable="false"><strong>${escapeHtml(asset.name)}</strong><video controls loop data-asset-id="${asset.id}" src="${asset.url}"></video></div><p><br></p>`);
+    el.saveHint.textContent = "视频已插入";
+  } catch (error) {
+    console.warn("视频插入失败", error);
+    el.saveHint.textContent = "视频插入失败，文件可能太大";
+  }
 }
 
 function insertScene(kind) {
@@ -438,6 +511,33 @@ function insertScene(kind) {
   el.sceneDialog.close();
 }
 
+
+function mediaSelector() {
+  return "figure, .media-card, .video-card, .scene-card, img, video";
+}
+
+function clearSelectedMedia() {
+  el.editor.querySelectorAll(".selected-media").forEach((node) => node.classList.remove("selected-media"));
+}
+
+function selectMediaNode(node) {
+  const target = node.closest("figure, .media-card, .video-card, .scene-card") || node;
+  if (!el.editor.contains(target)) return;
+  clearSelectedMedia();
+  target.classList.add("selected-media");
+  el.saveHint.textContent = "已选中，可删除";
+}
+
+function deleteSelectedMedia() {
+  const selected = el.editor.querySelector(".selected-media");
+  if (!selected) {
+    el.saveHint.textContent = "先点一下图片、视频、音乐或动态场景";
+    return;
+  }
+  selected.remove();
+  updateActive({ content: el.editor.innerHTML });
+  el.saveHint.textContent = "已删除选中内容";
+}
 function backupData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -486,6 +586,17 @@ function bindEvents() {
   el.imageInput.addEventListener("change", () => insertImage(el.imageInput.files?.[0]));
   el.audioInput.addEventListener("change", () => insertAudio(el.audioInput.files?.[0]));
   el.videoInput.addEventListener("change", () => insertVideo(el.videoInput.files?.[0]));
+  el.deleteSelectedButton.addEventListener("click", deleteSelectedMedia);
+  el.editor.addEventListener("click", (event) => {
+    const media = event.target.closest(mediaSelector());
+    if (media) selectMediaNode(media);
+  });
+  el.editor.addEventListener("keydown", (event) => {
+    if ((event.key === "Delete" || event.key === "Backspace") && el.editor.querySelector(".selected-media")) {
+      event.preventDefault();
+      deleteSelectedMedia();
+    }
+  });
   el.insertSceneButton.addEventListener("click", () => { saveSelection(); el.sceneDialog.showModal(); });
   document.querySelectorAll(".scene-options button").forEach((button) => {
     button.addEventListener("click", () => insertScene(button.value));
@@ -494,3 +605,4 @@ function bindEvents() {
 
 bindEvents();
 render();
+
