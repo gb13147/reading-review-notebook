@@ -369,3 +369,34 @@ input, select {
 .context-menu button:hover {
   background: #fff0ed;
 }
+
+.quick-delete {
+  position: fixed;
+  z-index: 10000;
+  min-width: 86px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #e1bdb7;
+  border-radius: 8px;
+  color: var(--danger);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(35, 31, 24, .18);
+  font-weight: 800;
+}
+
+.quick-delete:hover {
+  color: #fff;
+  background: var(--danger);
+}
+
+.paper-page .selected-media,
+.rich-editor .selected-media {
+  outline: 3px dashed var(--accent);
+  outline-offset: 5px;
+  border-radius: 6px;
+}
+
+.page-content [data-block-id],
+.rich-editor [data-block-id] {
+  cursor: pointer;
+}
