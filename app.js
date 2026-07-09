@@ -8,6 +8,7 @@ let spreadIndex = 0;
 let soundOn = state.settings.soundOn ?? true;
 let soundKind = state.settings.soundKind || "soft";
 let lastRange = null;
+let selectedMediaId = null;
 
 const el = {
   newEntryButton: document.querySelector("#newEntryButton"),
@@ -286,6 +287,55 @@ function renderDetail(restoreEditor) {
   hydrateEntryAssets(entry);
 }
 
+
+function mediaBlockSelector() {
+  return "figure, .media-card, .video-card, .scene-card, img, video";
+}
+
+function ensureEntryMediaIds(entry) {
+  if (!entry?.content) return;
+  const temp = document.createElement("div");
+  temp.innerHTML = entry.content;
+  let changed = false;
+  temp.querySelectorAll("figure, .media-card, .video-card, .scene-card, img, video").forEach((node) => {
+    const block = node.closest("figure, .media-card, .video-card, .scene-card") || node;
+    if (!block.dataset.mediaId) {
+      block.dataset.mediaId = `media-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      changed = true;
+    }
+    if (node !== block && !node.dataset.mediaId) {
+      node.dataset.mediaId = block.dataset.mediaId;
+      changed = true;
+    }
+  });
+  if (changed) {
+    entry.content = temp.innerHTML;
+    saveState();
+  }
+}
+
+function deleteMediaFromEntry(mediaId) {
+  const entry = activeEntry();
+  if (!entry || !mediaId) return false;
+  const temp = document.createElement("div");
+  temp.innerHTML = entry.content || "";
+  const node = temp.querySelector(`[data-media-id="${CSS.escape(mediaId)}"]`);
+  if (!node) return false;
+  const block = node.closest("figure, .media-card, .video-card, .scene-card") || node;
+  const next = block.nextElementSibling;
+  block.remove();
+  if (next?.tagName === "P" && !next.textContent.trim() && next.innerHTML.includes("<br")) {
+    next.remove();
+  }
+  entry.content = temp.innerHTML;
+  entry.updatedAt = new Date().toISOString();
+  el.editor.innerHTML = entry.content;
+  selectedMediaId = null;
+  saveState();
+  render();
+  el.saveHint.textContent = "已真正删除内容";
+  return true;
+}
 function splitContentIntoPages(entry) {
   const temp = document.createElement("div");
   temp.innerHTML = entry.content || "";
@@ -484,13 +534,15 @@ function fileToDataUrl(file) {
 async function insertImage(file) {
   if (!file) return;
   const src = await fileToDataUrl(file);
-  insertHtmlAtCursor(`<figure contenteditable="false"><img src="${src}" alt="${escapeHtml(file.name)}" style="width: 72%;"><figcaption contenteditable="true">${escapeHtml(file.name)}</figcaption></figure><p><br></p>`);
+  const mediaId = uid().replace("entry", "media");
+  insertHtmlAtCursor(`<figure contenteditable="false" data-media-id="${mediaId}"><img data-media-id="${mediaId}" src="${src}" alt="${escapeHtml(file.name)}" style="width: 72%;"><figcaption contenteditable="true">${escapeHtml(file.name)}</figcaption></figure><p><br></p>`);
 }
 
 async function insertAudio(file) {
   if (!file) return;
   const src = await fileToDataUrl(file);
-  insertHtmlAtCursor(`<div class="media-card" contenteditable="false"><strong>♪ ${escapeHtml(file.name)}</strong><audio controls src="${src}"></audio></div><p><br></p>`);
+  const mediaId = uid().replace("entry", "media");
+  insertHtmlAtCursor(`<div class="media-card" contenteditable="false" data-media-id="${mediaId}"><strong>♪ ${escapeHtml(file.name)}</strong><audio controls src="${src}"></audio></div><p><br></p>`);
 }
 
 async function insertVideo(file) {
@@ -498,7 +550,9 @@ async function insertVideo(file) {
   el.saveHint.textContent = "正在插入视频...";
   try {
     const asset = await saveAsset(file);
-    insertHtmlAtCursor(`<div class="video-card selected-media" contenteditable="false"><strong>${escapeHtml(asset.name)}</strong><video controls loop data-asset-id="${asset.id}" src="${asset.url}"></video></div><p><br></p>`);
+    const mediaId = uid().replace("entry", "media");
+    insertHtmlAtCursor(`<div class="video-card selected-media" contenteditable="false" data-media-id="${mediaId}"><strong>${escapeHtml(asset.name)}</strong><video controls loop data-media-id="${mediaId}" data-asset-id="${asset.id}" src="${asset.url}"></video></div><p><br></p>`);
+    selectedMediaId = mediaId;
     el.saveHint.textContent = "视频已插入";
   } catch (error) {
     console.warn("视频插入失败", error);
@@ -508,36 +562,43 @@ async function insertVideo(file) {
 
 function insertScene(kind) {
   const names = { rain: "下雨", snow: "飘雪", leaves: "落叶", stars: "星空", candle: "烛光" };
-  insertHtmlAtCursor(`<div class="scene-card ${kind}" contenteditable="false"><span>${names[kind] || "动态场景"}</span></div><p><br></p>`);
+  const mediaId = uid().replace("entry", "media");
+  insertHtmlAtCursor(`<div class="scene-card ${kind}" contenteditable="false" data-media-id="${mediaId}"><span>${names[kind] || "动态场景"}</span></div><p><br></p>`);
+  selectedMediaId = mediaId;
   el.sceneDialog.close();
 }
 
 
 function mediaSelector() {
-  return "figure, .media-card, .video-card, .scene-card, img, video";
+  return mediaBlockSelector();
 }
 
 function clearSelectedMedia() {
   el.editor.querySelectorAll(".selected-media").forEach((node) => node.classList.remove("selected-media"));
+  el.leftPage.querySelectorAll(".selected-media").forEach((node) => node.classList.remove("selected-media"));
+  el.rightPage.querySelectorAll(".selected-media").forEach((node) => node.classList.remove("selected-media"));
 }
 
 function selectMediaNode(node) {
   const target = node.closest("figure, .media-card, .video-card, .scene-card") || node;
-  if (!el.editor.contains(target)) return;
   clearSelectedMedia();
   target.classList.add("selected-media");
-  el.saveHint.textContent = "已选中，可删除";
+  selectedMediaId = target.dataset.mediaId || node.dataset.mediaId || null;
+  el.saveHint.textContent = selectedMediaId ? "已选中，可删除" : "这个旧内容没有编号，请在右侧编辑器中删除";
 }
 
 function deleteSelectedMedia() {
   const selected = el.editor.querySelector(".selected-media");
-  if (!selected) {
-    el.saveHint.textContent = "先点一下图片、视频、音乐或动态场景";
+  const id = selected?.dataset.mediaId || selectedMediaId;
+  if (id && deleteMediaFromEntry(id)) return;
+  if (selected) {
+    selected.remove();
+    updateActive({ content: el.editor.innerHTML });
+    selectedMediaId = null;
+    el.saveHint.textContent = "已删除选中内容";
     return;
   }
-  selected.remove();
-  updateActive({ content: el.editor.innerHTML });
-  el.saveHint.textContent = "已删除选中内容";
+  el.saveHint.textContent = "先右键图片、视频、音乐或动态场景";
 }
 
 function ensureContextMenu() {
@@ -650,5 +711,6 @@ function bindEvents() {
 
 bindEvents();
 render();
+
 
 
