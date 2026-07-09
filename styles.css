@@ -417,3 +417,45 @@ input, select {
 .rich-editor {
   cursor: text;
 }
+
+.quick-actions {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(35, 31, 24, .18);
+}
+
+.quick-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--accent-dark);
+  background: #eef3ee;
+  font-weight: 800;
+}
+
+.quick-actions button[data-action="delete"] {
+  color: var(--danger);
+  background: #fff0ed;
+}
+
+.quick-actions button:hover {
+  color: #fff;
+  background: var(--accent);
+}
+
+.quick-actions button[data-action="delete"]:hover {
+  background: var(--danger);
+}
+
+.quick-actions,
+.quick-delete,
+.context-menu {
+  display: none !important;
+}

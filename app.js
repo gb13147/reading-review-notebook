@@ -310,7 +310,7 @@ function selectBlock(node) {
   block.classList.add("selected-media");
   selectedBlockId = block.dataset.blockId || null;
   selectedMediaId = block.dataset.mediaId || node.dataset?.mediaId || null;
-  el.saveHint.textContent = "已选中，可点删除这块";
+  el.saveHint.textContent = "已选中，可书写或删除";
   return true;
 }
 
@@ -528,29 +528,46 @@ function showContextMenu(x, y) { const menu = ensureContextMenu(); menu.style.le
 function hideContextMenu() { el.contextMenu?.classList.add("hidden"); }
 function ensureQuickDelete() {
   if (el.quickDelete) return el.quickDelete;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "quick-delete hidden";
-  button.textContent = "删除这块";
-  document.body.appendChild(button);
-  button.addEventListener("click", deleteSelectedMedia);
-  el.quickDelete = button;
-  return button;
+  const bar = document.createElement("div");
+  bar.className = "quick-actions hidden";
+  bar.innerHTML = `<button type="button" data-action="write">书写正文</button><button type="button" data-action="delete">删除这块</button>`;
+  document.body.appendChild(bar);
+  bar.addEventListener("click", (event) => {
+    const action = event.target?.dataset.action;
+    if (action === "write") focusSelectedBlockInEditor();
+    if (action === "delete") deleteSelectedMedia();
+  });
+  el.quickDelete = bar;
+  return bar;
 }
+
 function showQuickDelete(target) {
-  const button = ensureQuickDelete();
+  const bar = ensureQuickDelete();
   const rect = target.getBoundingClientRect();
-  button.style.left = `${Math.min(window.innerWidth - 110, rect.right - 92)}px`;
-  button.style.top = `${Math.max(8, rect.top + 6)}px`;
-  button.classList.remove("hidden");
+  bar.style.left = `${Math.min(window.innerWidth - 190, rect.right - 176)}px`;
+  bar.style.top = `${Math.max(8, rect.top + 6)}px`;
+  bar.classList.remove("hidden");
 }
-function hideQuickDelete() { el.quickDelete?.classList.add("hidden"); }
-function selectAndShow(target, event = null) {
-  if (!selectBlock(target)) return false;
-  const selected = document.querySelector(".selected-media");
-  if (selected) showQuickDelete(selected);
-  if (event?.type === "contextmenu") showContextMenu(event.clientX, event.clientY);
-  return true;
+
+function hideQuickDelete() {
+  el.quickDelete?.classList.add("hidden");
+}
+
+function focusSelectedBlockInEditor() {
+  const selector = selectedBlockId ? `[data-block-id="${CSS.escape(selectedBlockId)}"]` : selectedMediaId ? `[data-media-id="${CSS.escape(selectedMediaId)}"]` : "";
+  const target = selector ? el.editor.querySelector(selector) : null;
+  el.editor.focus();
+  if (target) {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    lastRange = range.cloneRange();
+  }
+  el.saveHint.textContent = "已进入书写位置";
 }
 function handleBlockContextMenu(event) {
   const inEditor = el.editor.contains(event.target);
@@ -565,7 +582,10 @@ function handleBlockContextMenu(event) {
 }
 function handlePreviewClick(event, side) {
   const edge = side === "left" ? event.offsetX < 80 : event.offsetX > event.currentTarget.clientWidth - 80;
-  if (edge) { turn(side === "left" ? "prev" : "next"); return; }
+  if (edge) {
+    turn(side === "left" ? "prev" : "next");
+    return;
+  }
   const block = findDeletableBlock(event.target);
   if (block) selectAndShow(block, event);
   else hideQuickDelete();
@@ -629,4 +649,7 @@ function bindEvents() {
 
 bindEvents();
 render();
+
+
+
 
