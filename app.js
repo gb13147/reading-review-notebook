@@ -389,14 +389,28 @@ function applyPhotoBackground(node, entry) {
   else node.style.backgroundImage = "";
 }
 function pageHtml(entry, page, number, pageIndex) {
+  const body = page?.body && stripHtml(page.body).trim() ? page.body : `<p data-block-id="${uid("block")}"><br></p>`;
   return `
     <div class="page-date">${escapeHtml(formatDate(entry.date, entry.time))}</div>
     <h1 class="page-title" contenteditable="true" data-edit-title="${pageIndex}">${escapeHtml(page.title || "未命名感想")}</h1>
-    <div class="page-content direct-edit" contenteditable="true" data-page-index="${pageIndex}">${page.body}</div>
+    <div class="page-content direct-edit" contenteditable="true" data-page-index="${pageIndex}">${body}</div>
     <span class="page-number">${number}</span>
   `;
 }
 
+function focusPageEditorFromPaper(pageNode) {
+  const editor = pageNode.querySelector(".page-content.direct-edit");
+  if (!editor) return;
+  editor.focus();
+  const selection = window.getSelection();
+  if (selection.rangeCount && editor.contains(selection.anchorNode)) return;
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  lastRange = range.cloneRange();
+}
 function bindPageEditing() {
   document.querySelectorAll("[data-edit-title]").forEach((node) => {
     node.addEventListener("input", () => {
@@ -440,7 +454,15 @@ function syncPageContent(node) {
 }
 
 function saveDirectEdit() {
-  saveState();
+  state.activeId = activeId;
+  state.settings.soundOn = soundOn;
+  state.settings.soundKind = soundKind;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    el.saveHint.textContent = "已自动保存";
+  } catch (error) {
+    el.saveHint.textContent = "素材太大，建议压缩后再插入";
+  }
   renderList();
   renderCalendar();
 }
@@ -645,7 +667,9 @@ function handlePreviewClick(event, side) {
   const edge = side === "left" ? event.offsetX < 80 : event.offsetX > event.currentTarget.clientWidth - 80;
   if (edge && !event.target.closest("[contenteditable='true']")) {
     turn(side === "left" ? "prev" : "next");
+    return;
   }
+  focusPageEditorFromPaper(event.currentTarget);
 }
 
 function backupData() {
@@ -706,6 +730,7 @@ function bindEvents() {
 
 bindEvents();
 render();
+
 
 
 

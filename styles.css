@@ -478,3 +478,32 @@ input, select {
   content: "点击这里直接书写正文";
   color: rgba(32, 35, 31, .45);
 }
+
+/* Word-like direct writing surface */
+.paper-page {
+  cursor: text;
+}
+
+.page-content.direct-edit {
+  min-height: 430px;
+  width: 100%;
+  display: block;
+  cursor: text;
+  outline: none;
+  padding: 4px 0 80px;
+}
+
+.page-content.direct-edit:focus,
+.page-title[contenteditable="true"]:focus {
+  outline: none;
+  background: rgba(255, 255, 255, .18);
+}
+
+.page-content.direct-edit p {
+  min-height: 1.8em;
+}
+
+.page-content.direct-edit:empty::before {
+  content: "在这里直接书写...";
+  color: rgba(32, 35, 31, .42);
+}
