@@ -396,7 +396,24 @@ input, select {
   border-radius: 6px;
 }
 
-.page-content [data-block-id],
-.rich-editor [data-block-id] {
+
+
+.page-content h1,
+.page-content h2,
+.page-content h3,
+.page-content h4,
+.page-content blockquote,
+.page-content figure,
+.page-content img,
+.page-content video,
+.page-content .media-card,
+.page-content .video-card,
+.page-content .scene-card,
+.page-content hr,
+.page-content p:not(:empty) {
   cursor: pointer;
+}
+
+.rich-editor {
+  cursor: text;
 }

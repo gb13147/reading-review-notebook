@@ -253,12 +253,31 @@ function blockSelector() {
   return "figure, .media-card, .video-card, .scene-card, [data-block-id], [data-media-id], h1, h2, h3, h4, p, blockquote, hr, ul, ol, li, img, video";
 }
 
+function isEmptyTextBlock(node) {
+  if (!node) return true;
+  if (node.matches?.("figure, .media-card, .video-card, .scene-card, img, video, audio, hr")) return false;
+  const text = (node.textContent || "").replace(/\u00a0/g, "").trim();
+  const hasMedia = Boolean(node.querySelector?.("img, video, audio, .media-card, .video-card, .scene-card"));
+  return !text && !hasMedia;
+}
+
+function isRealContentBlock(node) {
+  return Boolean(node && !isEmptyTextBlock(node));
+}
+
 function ensureEntryBlockIds(entry) {
   if (!entry?.content) return;
   const temp = document.createElement("div");
   temp.innerHTML = entry.content;
   let changed = false;
-  [...temp.children].forEach((node) => {
+    [...temp.children].forEach((node) => {
+    if (isEmptyTextBlock(node)) {
+      if (node.dataset.blockId) {
+        delete node.dataset.blockId;
+        changed = true;
+      }
+      return;
+    }
     if (!node.dataset.blockId) { node.dataset.blockId = uid("block"); changed = true; }
   });
   temp.querySelectorAll("figure, .media-card, .video-card, .scene-card, img, video, audio").forEach((node) => {
@@ -276,7 +295,8 @@ function findDeletableBlock(node) {
   if (!node || node === document) return null;
   const block = node.closest(blockSelector());
   if (!block || block.classList?.contains("page-content") || block.classList?.contains("paper-page")) return null;
-  return block.closest("figure, .media-card, .video-card, .scene-card, [data-block-id]") || block;
+  const target = block.closest("figure, .media-card, .video-card, .scene-card, [data-block-id]") || block;
+  return isRealContentBlock(target) ? target : null;
 }
 
 function clearSelectedBlock() {
@@ -290,7 +310,7 @@ function selectBlock(node) {
   block.classList.add("selected-media");
   selectedBlockId = block.dataset.blockId || null;
   selectedMediaId = block.dataset.mediaId || node.dataset?.mediaId || null;
-  el.saveHint.textContent = "已选中，可删除";
+  el.saveHint.textContent = "已选中，可点删除这块";
   return true;
 }
 
@@ -320,7 +340,7 @@ function deleteBlockFromEntry() {
 }
 
 function deleteSelectedMedia() {
-  if (!deleteBlockFromEntry()) el.saveHint.textContent = "先点一下要删除的内容";
+  if (!deleteBlockFromEntry()) el.saveHint.textContent = "请先点有文字、图片、视频或引用的内容块";
 }
 
 function splitContentIntoPages(entry) {
@@ -533,6 +553,11 @@ function selectAndShow(target, event = null) {
   return true;
 }
 function handleBlockContextMenu(event) {
+  const inEditor = el.editor.contains(event.target);
+  if (inEditor) {
+    const mediaOnly = event.target.closest("figure, .media-card, .video-card, .scene-card, img, video, audio");
+    if (!mediaOnly) return;
+  }
   const block = findDeletableBlock(event.target);
   if (!block) return;
   event.preventDefault();
@@ -543,6 +568,7 @@ function handlePreviewClick(event, side) {
   if (edge) { turn(side === "left" ? "prev" : "next"); return; }
   const block = findDeletableBlock(event.target);
   if (block) selectAndShow(block, event);
+  else hideQuickDelete();
 }
 
 function backupData() {
@@ -585,10 +611,6 @@ function bindEvents() {
   el.editor.addEventListener("keyup", saveSelection);
   el.editor.addEventListener("mouseup", saveSelection);
   el.editor.addEventListener("input", () => updateActive({ content: el.editor.innerHTML }));
-  el.editor.addEventListener("click", (event) => {
-    const block = findDeletableBlock(event.target);
-    if (block?.matches("figure, .media-card, .video-card, .scene-card, img, video, audio")) selectAndShow(block, event);
-  });
   document.querySelectorAll(".format-bar button").forEach((button) => {
     button.addEventListener("click", () => { el.editor.focus(); document.execCommand(button.dataset.command, false, button.dataset.value || null); updateActive({ content: el.editor.innerHTML }); });
   });
@@ -607,3 +629,4 @@ function bindEvents() {
 
 bindEvents();
 render();
+
