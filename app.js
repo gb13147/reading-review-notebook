@@ -9,6 +9,7 @@ let soundOn = state.settings.soundOn ?? true;
 let soundKind = state.settings.soundKind || "soft";
 let lastRange = null;
 let selectedMediaId = null;
+let selectedBlockId = null;
 
 const el = {
   newEntryButton: document.querySelector("#newEntryButton"),
@@ -292,11 +293,23 @@ function mediaBlockSelector() {
   return "figure, .media-card, .video-card, .scene-card, img, video";
 }
 
+function contentBlockSelector() {
+  return "[data-block-id], [data-media-id], figure, .media-card, .video-card, .scene-card, h1, h2, h3, h4, p, blockquote, hr, ul, ol, li, img, video";
+}
+
 function ensureEntryMediaIds(entry) {
   if (!entry?.content) return;
   const temp = document.createElement("div");
   temp.innerHTML = entry.content;
   let changed = false;
+
+  [...temp.children].forEach((node) => {
+    if (!node.dataset.blockId) {
+      node.dataset.blockId = `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      changed = true;
+    }
+  });
+
   temp.querySelectorAll("figure, .media-card, .video-card, .scene-card, img, video").forEach((node) => {
     const block = node.closest("figure, .media-card, .video-card, .scene-card") || node;
     if (!block.dataset.mediaId) {
@@ -314,14 +327,15 @@ function ensureEntryMediaIds(entry) {
   }
 }
 
-function deleteMediaFromEntry(mediaId) {
+function deleteBlockFromEntry(blockId, mediaId) {
   const entry = activeEntry();
-  if (!entry || !mediaId) return false;
+  if (!entry || (!blockId && !mediaId)) return false;
   const temp = document.createElement("div");
   temp.innerHTML = entry.content || "";
-  const node = temp.querySelector(`[data-media-id="${CSS.escape(mediaId)}"]`);
+  const selector = mediaId ? `[data-media-id="${CSS.escape(mediaId)}"]` : `[data-block-id="${CSS.escape(blockId)}"]`;
+  const node = temp.querySelector(selector);
   if (!node) return false;
-  const block = node.closest("figure, .media-card, .video-card, .scene-card") || node;
+  const block = node.closest("figure, .media-card, .video-card, .scene-card, [data-block-id]") || node;
   const next = block.nextElementSibling;
   block.remove();
   if (next?.tagName === "P" && !next.textContent.trim() && next.innerHTML.includes("<br")) {
@@ -331,10 +345,15 @@ function deleteMediaFromEntry(mediaId) {
   entry.updatedAt = new Date().toISOString();
   el.editor.innerHTML = entry.content;
   selectedMediaId = null;
+  selectedBlockId = null;
   saveState();
   render();
   el.saveHint.textContent = "已真正删除内容";
   return true;
+}
+
+function deleteMediaFromEntry(mediaId) {
+  return deleteBlockFromEntry(null, mediaId);
 }
 function splitContentIntoPages(entry) {
   const temp = document.createElement("div");
@@ -570,7 +589,7 @@ function insertScene(kind) {
 
 
 function mediaSelector() {
-  return mediaBlockSelector();
+  return contentBlockSelector();
 }
 
 function clearSelectedMedia() {
@@ -580,25 +599,28 @@ function clearSelectedMedia() {
 }
 
 function selectMediaNode(node) {
-  const target = node.closest("figure, .media-card, .video-card, .scene-card") || node;
+  const target = node.closest("figure, .media-card, .video-card, .scene-card, [data-block-id], h1, h2, h3, h4, p, blockquote, hr, ul, ol, li") || node;
   clearSelectedMedia();
   target.classList.add("selected-media");
   selectedMediaId = target.dataset.mediaId || node.dataset.mediaId || null;
-  el.saveHint.textContent = selectedMediaId ? "已选中，可删除" : "这个旧内容没有编号，请在右侧编辑器中删除";
+  selectedBlockId = target.dataset.blockId || node.dataset.blockId || null;
+  el.saveHint.textContent = (selectedMediaId || selectedBlockId) ? "已选中，可删除" : "这个内容没有编号，请点一次预览后再试";
 }
 
 function deleteSelectedMedia() {
-  const selected = el.editor.querySelector(".selected-media");
-  const id = selected?.dataset.mediaId || selectedMediaId;
-  if (id && deleteMediaFromEntry(id)) return;
-  if (selected) {
+  const selected = el.editor.querySelector(".selected-media") || el.leftPage.querySelector(".selected-media") || el.rightPage.querySelector(".selected-media");
+  const mediaId = selected?.dataset.mediaId || selectedMediaId;
+  const blockId = selected?.dataset.blockId || selectedBlockId;
+  if ((mediaId || blockId) && deleteBlockFromEntry(blockId, mediaId)) return;
+  if (selected && el.editor.contains(selected)) {
     selected.remove();
     updateActive({ content: el.editor.innerHTML });
     selectedMediaId = null;
+    selectedBlockId = null;
     el.saveHint.textContent = "已删除选中内容";
     return;
   }
-  el.saveHint.textContent = "先右键图片、视频、音乐或动态场景";
+  el.saveHint.textContent = "先右键标题、段落、横线、图片或视频";
 }
 
 function ensureContextMenu() {
@@ -711,6 +733,7 @@ function bindEvents() {
 
 bindEvents();
 render();
+
 
 
 
