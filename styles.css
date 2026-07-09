@@ -459,3 +459,22 @@ input, select {
 .context-menu {
   display: none !important;
 }
+
+.page-title[contenteditable="true"],
+.page-content.direct-edit {
+  outline: none;
+  cursor: text;
+}
+
+.page-title[contenteditable="true"]:focus,
+.page-content.direct-edit:focus {
+  outline: 3px dashed var(--accent);
+  outline-offset: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .2);
+}
+
+.page-content.direct-edit:empty::before {
+  content: "点击这里直接书写正文";
+  color: rgba(32, 35, 31, .45);
+}

@@ -10,6 +10,7 @@ let soundKind = state.settings.soundKind || "soft";
 let lastRange = null;
 let selectedBlockId = null;
 let selectedMediaId = null;
+let currentPages = [];
 
 const el = {
   newEntryButton: document.querySelector("#newEntryButton"),
@@ -365,6 +366,7 @@ function splitContentIntoPages(entry) {
 function renderBook(entry) {
   ensureEntryBlockIds(entry);
   const pages = splitContentIntoPages(entry);
+  currentPages = pages;
   const spreadCount = Math.max(1, Math.ceil(pages.length / 2));
   spreadIndex = Math.min(spreadIndex, spreadCount - 1);
   const left = pages[spreadIndex * 2];
@@ -373,11 +375,12 @@ function renderBook(entry) {
   el.rightPage.className = `paper-page right-page ${backgroundClass(entry)}`;
   applyPhotoBackground(el.leftPage, entry);
   applyPhotoBackground(el.rightPage, entry);
-  el.leftPage.innerHTML = pageHtml(entry, left, spreadIndex * 2 + 1);
-  el.rightPage.innerHTML = right ? pageHtml(entry, right, spreadIndex * 2 + 2) : `<span class="page-number">${spreadIndex * 2 + 2}</span>`;
+  el.leftPage.innerHTML = pageHtml(entry, left, spreadIndex * 2 + 1, spreadIndex * 2);
+  el.rightPage.innerHTML = right ? pageHtml(entry, right, spreadIndex * 2 + 2, spreadIndex * 2 + 1) : `<span class="page-number">${spreadIndex * 2 + 2}</span>`;
   el.pageLabel.textContent = `${spreadIndex + 1} / ${spreadCount}`;
   el.prevPageButton.disabled = spreadIndex === 0;
   el.nextPageButton.disabled = spreadIndex >= spreadCount - 1;
+  bindPageEditing();
 }
 
 function backgroundClass(entry) { return `page-bg-${entry.background || "paper"}`; }
@@ -385,10 +388,62 @@ function applyPhotoBackground(node, entry) {
   if (entry.background === "photo" && entry.backgroundImage) node.style.backgroundImage = `linear-gradient(rgba(255,248,232,.72), rgba(255,248,232,.72)), url(${entry.backgroundImage})`;
   else node.style.backgroundImage = "";
 }
-function pageHtml(entry, page, number) {
-  return `<div class="page-date">${escapeHtml(formatDate(entry.date, entry.time))}</div><h1 class="page-title">${escapeHtml(page.title || "未命名感想")}</h1><div class="page-content">${page.body}</div><span class="page-number">${number}</span>`;
+function pageHtml(entry, page, number, pageIndex) {
+  return `
+    <div class="page-date">${escapeHtml(formatDate(entry.date, entry.time))}</div>
+    <h1 class="page-title" contenteditable="true" data-edit-title="${pageIndex}">${escapeHtml(page.title || "未命名感想")}</h1>
+    <div class="page-content direct-edit" contenteditable="true" data-page-index="${pageIndex}">${page.body}</div>
+    <span class="page-number">${number}</span>
+  `;
 }
 
+function bindPageEditing() {
+  document.querySelectorAll("[data-edit-title]").forEach((node) => {
+    node.addEventListener("input", () => {
+      const entry = activeEntry();
+      if (!entry) return;
+      entry.title = node.textContent.trim() || "未命名感想";
+      el.titleInput.value = entry.title;
+      el.currentEntryTitle.textContent = entry.title;
+      saveDirectEdit();
+    });
+    node.addEventListener("keydown", stopPageTurnKeys);
+  });
+
+  document.querySelectorAll("[data-page-index]").forEach((node) => {
+    node.addEventListener("input", () => syncPageContent(node));
+    node.addEventListener("mouseup", saveSelection);
+    node.addEventListener("keyup", saveSelection);
+    node.addEventListener("keydown", stopPageTurnKeys);
+    node.addEventListener("click", () => {
+      clearSelectedBlock();
+      hideQuickDelete();
+      hideContextMenu();
+    });
+  });
+}
+
+function stopPageTurnKeys(event) {
+  event.stopPropagation();
+}
+
+function syncPageContent(node) {
+  const entry = activeEntry();
+  if (!entry) return;
+  const pageIndex = Number(node.dataset.pageIndex);
+  if (!currentPages[pageIndex]) return;
+  currentPages[pageIndex].body = node.innerHTML || "<p><br></p>";
+  entry.content = currentPages.map((page) => page.body).join("");
+  entry.updatedAt = new Date().toISOString();
+  saveDirectEdit();
+  hydrateEntryAssets(entry);
+}
+
+function saveDirectEdit() {
+  saveState();
+  renderList();
+  renderCalendar();
+}
 function turn(direction) {
   const entry = activeEntry();
   if (!entry) return;
@@ -427,7 +482,10 @@ function playPageSound() {
 function saveSelection() {
   const selection = window.getSelection();
   if (!selection?.rangeCount) return;
-  if (el.editor.contains(selection.anchorNode)) lastRange = selection.getRangeAt(0).cloneRange();
+  const node = selection.anchorNode;
+  if (el.editor.contains(node) || el.leftPage.contains(node) || el.rightPage.contains(node)) {
+    lastRange = selection.getRangeAt(0).cloneRange();
+  }
 }
 function restoreSelection() {
   if (!lastRange) return;
@@ -436,11 +494,14 @@ function restoreSelection() {
   selection.addRange(lastRange);
 }
 function insertHtmlAtCursor(html) {
-  el.editor.focus();
+  const activeEditable = document.activeElement?.closest?.("[contenteditable='true']") || document.querySelector(".page-content.direct-edit");
+  activeEditable?.focus();
   restoreSelection();
   document.execCommand("insertHTML", false, html);
   lastRange = null;
-  updateActive({ content: el.editor.innerHTML });
+  const pageNode = activeEditable?.closest?.("[data-page-index]");
+  if (pageNode) syncPageContent(pageNode);
+  else updateActive({ content: el.editor.innerHTML });
 }
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
@@ -582,13 +643,9 @@ function handleBlockContextMenu(event) {
 }
 function handlePreviewClick(event, side) {
   const edge = side === "left" ? event.offsetX < 80 : event.offsetX > event.currentTarget.clientWidth - 80;
-  if (edge) {
+  if (edge && !event.target.closest("[contenteditable='true']")) {
     turn(side === "left" ? "prev" : "next");
-    return;
   }
-  const block = findDeletableBlock(event.target);
-  if (block) selectAndShow(block, event);
-  else hideQuickDelete();
 }
 
 function backupData() {
@@ -649,6 +706,7 @@ function bindEvents() {
 
 bindEvents();
 render();
+
 
 
 
