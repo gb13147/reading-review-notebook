@@ -48,7 +48,8 @@ const el = {
   insertSceneButton: document.querySelector("#insertSceneButton"),
   deleteSelectedButton: document.querySelector("#deleteSelectedButton"),
   sceneDialog: document.querySelector("#sceneDialog"),
-  saveHint: document.querySelector("#saveHint")
+  saveHint: document.querySelector("#saveHint"),
+  contextMenu: null
 };
 
 function seedEntries() {
@@ -538,6 +539,41 @@ function deleteSelectedMedia() {
   updateActive({ content: el.editor.innerHTML });
   el.saveHint.textContent = "已删除选中内容";
 }
+
+function ensureContextMenu() {
+  if (el.contextMenu) return el.contextMenu;
+  const menu = document.createElement("div");
+  menu.className = "context-menu hidden";
+  menu.innerHTML = `<button type="button" data-action="delete-media">删除这个内容</button>`;
+  document.body.appendChild(menu);
+  menu.addEventListener("click", (event) => {
+    if (event.target?.dataset.action === "delete-media") {
+      deleteSelectedMedia();
+      hideContextMenu();
+    }
+  });
+  el.contextMenu = menu;
+  return menu;
+}
+
+function showContextMenu(x, y) {
+  const menu = ensureContextMenu();
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.classList.remove("hidden");
+}
+
+function hideContextMenu() {
+  el.contextMenu?.classList.add("hidden");
+}
+
+function handleMediaContextMenu(event) {
+  const media = event.target.closest(mediaSelector());
+  if (!media) return;
+  event.preventDefault();
+  selectMediaNode(media);
+  showContextMenu(event.clientX, event.clientY);
+}
 function backupData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -587,6 +623,15 @@ function bindEvents() {
   el.audioInput.addEventListener("change", () => insertAudio(el.audioInput.files?.[0]));
   el.videoInput.addEventListener("change", () => insertVideo(el.videoInput.files?.[0]));
   el.deleteSelectedButton.addEventListener("click", deleteSelectedMedia);
+  el.editor.addEventListener("contextmenu", handleMediaContextMenu);
+  el.leftPage.addEventListener("contextmenu", handleMediaContextMenu);
+  el.rightPage.addEventListener("contextmenu", handleMediaContextMenu);
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".context-menu")) hideContextMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideContextMenu();
+  });
   el.editor.addEventListener("click", (event) => {
     const media = event.target.closest(mediaSelector());
     if (media) selectMediaNode(media);
@@ -605,4 +650,5 @@ function bindEvents() {
 
 bindEvents();
 render();
+
 
